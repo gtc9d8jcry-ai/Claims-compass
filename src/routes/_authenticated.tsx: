@@ -1,0 +1,89 @@
+import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+export const Route = createFileRoute('/_authenticated')({
+  component: AuthenticatedLayout,
+});
+
+function AuthenticatedLayout() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate({ to: '/login' });
+        return;
+      }
+      setUser(user);
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading ClaimCompass...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Professional Top Bar */}
+      <header className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl">CC</div>
+          <div>
+            <h1 className="font-semibold text-2xl tracking-tight">ClaimCompass</h1>
+            <p className="text-xs text-gray-500 -mt-0.5">UK Benefits Assistant</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-medium">{user?.email?.split('@')[0]}</div>
+          <button 
+            onClick={() => supabase.auth.signOut().then(() => navigate({ to: '/login' }))}
+            className="text-xs text-red-600 hover:underline"
+          >
+            Sign out
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 pb-24 max-w-2xl mx-auto w-full">
+        <Outlet />
+      </main>
+
+      {/* Professional Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-[0_-2px_8px_rgb(0,0,0,0.08)]">
+        <div className="max-w-2xl mx-auto flex justify-around py-3">
+          <a href="/_authenticated/dashboard" className="flex-1 flex flex-col items-center text-blue-600">
+            <span className="text-3xl">🏠</span>
+            <span className="text-[10px] font-medium mt-1">Home</span>
+          </a>
+          <a href="/_authenticated/check-benefits" className="flex-1 flex flex-col items-center text-gray-500 hover:text-gray-700">
+            <span className="text-3xl">✅</span>
+            <span className="text-[10px] font-medium mt-1">Benefits</span>
+          </a>
+          <a href="/_authenticated/conversational" className="flex-1 flex flex-col items-center text-gray-500 hover:text-gray-700">
+            <span className="text-3xl">💬</span>
+            <span className="text-[10px] font-medium mt-1">AI</span>
+          </a>
+          <a href="/_authenticated/profile" className="flex-1 flex flex-col items-center text-gray-500 hover:text-gray-700">
+            <span className="text-3xl">👤</span>
+            <span className="text-[10px] font-medium mt-1">Profile</span>
+          </a>
+        </div>
+      </nav>
+    </div>
+  );
+}
