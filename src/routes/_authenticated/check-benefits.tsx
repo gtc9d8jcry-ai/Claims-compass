@@ -1,158 +1,83 @@
-import { useEffect, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { supabase } from '@/lib/supabase'; // Adjust path if your supabase client is elsewhere
-import { runEligibility, EligibilityResults } from '@/lib/claims/eligibility';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { runEligibility } from '@/lib/claims/eligibility';
 import { Profile } from '@/lib/schemas/profile';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export const Route = createFileRoute('/_authenticated/check-benefits')({
   component: CheckBenefits,
 });
 
 function CheckBenefits() {
-  const [results, setResults] = useState<EligibilityResults | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchAndCheck = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
+  useEffect(() => {
+    const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('Please log in to check your benefits');
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
 
-      const { data: profileData, error: profileError } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (profileError || !profileData) {
-        setError('Please complete your profile first');
-        setLoading(false);
-        return;
+      if (data) {
+        setProfile(data);
+        setResults(runEligibility(data));
       }
-
-      const eligibilityResults = runEligibility(profileData as Profile);
-      setResults(eligibilityResults);
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
-    } finally {
       setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAndCheck();
+    };
+    load();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Checking your benefits...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-red-600 mb-4">{error}</p>
-        <button 
-          onClick={fetchAndCheck}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
-
-  if (!results) return null;
+  if (loading) return <div className="p-8 text-center">Checking your eligibility across all benefits...</div>;
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Your Benefits Check</h1>
-        <button 
-          onClick={fetchAndCheck}
-          className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
-        >
-          Refresh
-        </button>
-      </div>
+    <div className="p-6 max-w-2xl mx-auto space-y-6">
+      <h1 className="text-3xl font-bold">Your Benefits Eligibility</h1>
 
-      {/* Total Weekly Amount */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6 text-center">
-        <p className="text-sm text-blue-700 mb-1">Estimated weekly total</p>
-        <p className="text-4xl font-bold text-blue-900">£{results.totalWeekly}</p>
-        <p className="text-xs text-blue-600 mt-1">From likely + possible benefits</p>
-      </div>
+      {results && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-green-600">Likely Eligible</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-5xl font-bold text-green-600">{results.likely?.length || 0}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Est. Weekly</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-5xl font-bold text-blue-600">£{results.totalWeekly || 0}</p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Likely Eligible */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          <h2 className="font-semibold text-lg">Likely Eligible ({results.likely.length})</h2>
-        </div>
-        
-        {results.likely.length > 0 ? (
-          <div className="space-y-3">
-            {results.likely.map((benefit, index) => (
-              <div key={index} className="bg-white border border-green-200 rounded-xl p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{benefit.benefit}</h3>
-                    <p className="text-sm text-gray-600 mt-1">{benefit.reason}</p>
-                  </div>
-                  {benefit.weeklyAmount && (
-                    <div className="text-right">
-                      <p className="text-lg font-semibold text-green-700">£{benefit.weeklyAmount}</p>
-                      <p className="text-xs text-gray-500">per week</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="space-y-4">
+            {results.likely?.map((b: any) => (
+              <Card key={b.id}>
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold">{b.name}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{b.description}</p>
+                  {b.weeklyAmount && <p className="text-green-600 font-medium mt-3">≈ £{b.weeklyAmount} per week</p>}
+                </CardContent>
+              </Card>
             ))}
           </div>
-        ) : (
-          <p className="text-gray-500 text-sm">No likely eligible benefits found yet.</p>
-        )}
-      </div>
-
-      {/* Possible */}
-      {results.possible.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-            <h2 className="font-semibold text-lg">Possible ({results.possible.length})</h2>
-          </div>
-          <div className="space-y-3">
-            {results.possible.map((benefit, index) => (
-              <div key={index} className="bg-white border border-amber-200 rounded-xl p-4">
-                <h3 className="font-medium">{benefit.benefit}</h3>
-                <p className="text-sm text-gray-600 mt-1">{benefit.reason}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Unlikely Summary */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-        <p className="text-sm text-gray-600">
-          {results.unlikely.length} benefits checked as unlikely based on your current information.
-        </p>
-        <p className="text-xs text-gray-500 mt-2">
-          Update your profile if your circumstances change — new opportunities may appear.
-        </p>
+      <div className="text-center text-xs text-gray-500 pt-4">
+        Results based on your profile • We monitor policy changes daily
       </div>
     </div>
   );
