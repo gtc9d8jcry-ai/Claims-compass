@@ -1,106 +1,90 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { runEligibility, type EligibilityResults } from "@/lib/claims/eligibility";
-import { Profile } from "@/lib/schemas/profile";
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { runEligibility, type EligibilityResults } from '@/lib/claims/eligibility';
+import { Profile } from '@/lib/schemas/profile';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
-export const Route = createFileRoute("/_authenticated/dashboard")({
-  component: DashboardPage,
+export const Route = createFileRoute('/_authenticated/dashboard')({
+  component: Dashboard,
 });
 
-function DashboardPage() {
-  const { user } = useAuth();
+function Dashboard() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [results, setResults] = useState<EligibilityResults | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadDashboard = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      navigate({ to: '/login' });
+      return;
+    }
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (data) {
+      setProfile(data as Profile);
+      const eligibility = runEligibility(data as Profile);
+      setResults(eligibility);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
+    loadDashboard();
+  }, []);
 
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+  if (loading) {
+    return <div className="p-8 text-center">Loading your dashboard...</div>;
+  }
 
-      if (data) {
-        setProfile(data as Profile);
-        setResults(runEligibility(data as Profile));
-      }
-    };
-
-    fetchData();
-  }, [user]);
-
-  const likelyCount = results?.likely?.length || 0;
   const totalWeekly = results?.totalWeekly || 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">
-          Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
-        </h1>
-        <Button variant="outline" onClick={() => supabase.auth.signOut()}>
-          Sign out
+    <div className="p-4 max-w-2xl mx-auto space-y-6 pb-24">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-blue-600">Welcome back</h1>
+        <p className="text-gray-600 mt-1">ClaimCompass</p>
+      </div>
+
+      {totalWeekly > 0 && (
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+          <CardContent className="pt-6 text-center">
+            <p className="text-blue-600 font-medium">You could be receiving</p>
+            <p className="text-6xl font-bold text-blue-600 mt-1">£{totalWeekly}</p>
+            <p className="text-sm text-gray-500">per week in benefits</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        <Button 
+          onClick={() => navigate({ to: '/_authenticated/check-benefits' })}
+          className="h-28 flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-700"
+        >
+          <span className="text-3xl mb-1">✅</span>
+          <span>Check Benefits</span>
+        </Button>
+
+        <Button 
+          onClick={() => navigate({ to: '/_authenticated/conversational' })}
+          className="h-28 flex flex-col items-center justify-center border-2 border-gray-200 hover:bg-gray-50"
+          variant="outline"
+        >
+          <span className="text-3xl mb-1">💬</span>
+          <span>Talk to AI</span>
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Likely Eligible
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{likelyCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Estimated Weekly
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold text-primary">£{totalWeekly}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="transition-shadow hover:shadow-lg">
-          <CardContent className="space-y-3 pt-6">
-            <div>
-              <p className="font-semibold">Check My Benefits</p>
-              <p className="text-sm text-muted-foreground">
-                See exactly what you’re eligible for
-              </p>
-            </div>
-            <Button asChild>
-              <Link to="/check-benefits">Check Eligibility</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="transition-shadow hover:shadow-lg">
-          <CardContent className="space-y-3 pt-6">
-            <div>
-              <p className="font-semibold">Talk to AI Assistant</p>
-              <p className="text-sm text-muted-foreground">
-                Update your details or ask questions
-              </p>
-            </div>
-            <Button asChild variant="secondary">
-              <Link to="/conversational">Start Conversation</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="text-center text-xs text-gray-500 pt-8">
+        Your data is secure • We monitor government changes daily
       </div>
     </div>
   );
