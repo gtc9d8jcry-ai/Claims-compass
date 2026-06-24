@@ -1,9 +1,5 @@
 {
-  "//": "Vercel config for React Router - SPA support",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
