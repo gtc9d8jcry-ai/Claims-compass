@@ -1,143 +1,123 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { createFileRoute } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-export const Route = createFileRoute("/_authenticated/evidence")({
-  component: Evidence,
+export const Route = createFileRoute('/_authenticated/evidence')({
+  component: EvidenceVault,
 });
 
-type Doc = {
-  id: string;
-  title: string;
-  doc_type: string | null;
-  notes: string | null;
-};
+function EvidenceVault() {
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [docType, setDocType] = useState('Other');
 
-function Evidence() {
-  const { user } = useAuth();
-  const [docs, setDocs] = useState<Doc[]>([]);
-  const [form, setForm] = useState({
-    title: "",
-    doc_type: "",
-    notes: "",
-  });
-
-  const load = async () => {
+  const loadDocuments = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase
-      .from("evidence_documents")
-      .select("id, title, doc_type, notes")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
 
-    setDocs((data ?? []) as Doc[]);
+    const { data } = await supabase
+      .from('evidence_documents')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (data) setDocuments(data);
+    setLoading(false);
   };
 
   useEffect(() => {
-    load();
-  }, [user]);
+    loadDocuments();
+  }, []);
 
-  const add = async () => {
-    if (!user || !form.title.trim()) {
-      return toast.error("Please give it a title");
-    }
+  const uploadDocument = async () => {
+    // This is a placeholder — full file upload would use Supabase Storage
+    if (!title) return;
 
-    const { error } = await supabase.from("evidence_documents").insert({
+    setUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.from('evidence_documents').insert({
       user_id: user.id,
-      title: form.title.trim(),
-      doc_type: form.doc_type || null,
-      notes: form.notes || null,
+      title,
+      doc_type: docType,
+      file_url: '', // placeholder until storage is connected
+      notes: '',
     });
 
-    if (error) return toast.error(error.message);
-
-    setForm({ title: "", doc_type: "", notes: "" });
-    toast.success("Evidence added");
-    load();
-  };
-
-  const remove = async (id: string) => {
-    await supabase.from("evidence_documents").delete().eq("id", id);
-    toast.success("Evidence deleted");
-    load();
+    setTitle('');
+    setUploading(false);
+    loadDocuments();
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Evidence Vault</h1>
-        <p className="text-muted-foreground">
-          Keep track of documents and proof you’ll need for your claims.
-        </p>
-      </div>
+    <div className="p-4 max-w-2xl mx-auto pb-24">
+      <h1 className="text-3xl font-bold mb-6">Evidence Vault</h1>
 
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Add new evidence</CardTitle>
+          <CardTitle>Add New Document</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>Title</Label>
-            <Input
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              placeholder="e.g. Tenancy agreement"
+          <div>
+            <Label>Document Title</Label>
+            <Input 
+              value={title} 
+              onChange={(e) => setTitle(e.target.value)} 
+              placeholder="e.g. PIP Assessment Letter" 
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>Type (optional)</Label>
-            <Input
-              value={form.doc_type}
-              onChange={(e) => setForm((f) => ({ ...f, doc_type: e.target.value }))}
-              placeholder="e.g. Proof of rent, Medical letter, ID"
-            />
+          <div>
+            <Label>Document Type</Label>
+            <select 
+              value={docType} 
+              onChange={(e) => setDocType(e.target.value)}
+              className="w-full border rounded-lg p-2"
+            >
+              <option>Medical Evidence</option>
+              <option>Bank Statement</option>
+              <option>Identity Document</option>
+              <option>Assessment Letter</option>
+              <option>Other</option>
+            </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label>Notes (optional)</Label>
-            <Textarea
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="Any extra details..."
-            />
-          </div>
-
-          <Button onClick={add}>Add to vault</Button>
+          <Button onClick={uploadDocument} disabled={uploading || !title} className="w-full">
+            {uploading ? 'Saving...' : 'Save Document'}
+          </Button>
+          <p className="text-xs text-gray-500 text-center">
+            (Full file upload coming soon — currently saves metadata)
+          </p>
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
-        {docs.length === 0 && (
-          <p className="text-sm text-muted-foreground">No evidence saved yet.</p>
-        )}
-
-        {docs.map((doc) => (
-          <Card key={doc.id}>
-            <CardContent className="flex items-start justify-between gap-3 pt-6">
-              <div>
-                <p className="font-semibold">{doc.title}</p>
-                {doc.doc_type && (
-                  <p className="text-sm text-muted-foreground">{doc.doc_type}</p>
-                )}
-                {doc.notes && <p className="mt-1 text-sm">{doc.notes}</p>}
-              </div>
-
-              <Button variant="ghost" size="icon" onClick={() => remove(doc.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <h2 className="font-semibold mb-3">Your Documents</h2>
+      {loading ? (
+        <p>Loading documents...</p>
+      ) : documents.length === 0 ? (
+        <p className="text-gray-500">No documents yet. Add your first one above.</p>
+      ) : (
+        <div className="space-y-3">
+          {documents.map((doc) => (
+            <Card key={doc.id}>
+              <CardContent className="pt-4">
+                <div className="font-medium">{doc.title}</div>
+                <div className="text-sm text-gray-600">{doc.doc_type}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {new Date(doc.created_at).toLocaleDateString()}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
