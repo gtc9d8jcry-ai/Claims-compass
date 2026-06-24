@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export const Route = createFileRoute('/_authenticated/applications/$benefitId')({
   component: ApplicationForm,
@@ -18,9 +19,7 @@ function ApplicationForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const benefitName = benefitId
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  const benefitName = benefitId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   useEffect(() => {
     const loadData = async () => {
@@ -30,15 +29,9 @@ function ApplicationForm() {
         return;
       }
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
       if (profileData) setProfile(profileData);
 
-      // Load existing application if any
       const { data: existing } = await supabase
         .from('application_forms')
         .select('*')
@@ -46,9 +39,7 @@ function ApplicationForm() {
         .eq('benefit_id', benefitId)
         .single();
 
-      if (existing?.form_data) {
-        setFormData(existing.form_data);
-      }
+      if (existing?.form_data) setFormData(existing.form_data);
 
       setLoading(false);
     };
@@ -56,7 +47,7 @@ function ApplicationForm() {
     loadData();
   }, [benefitId, navigate]);
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
@@ -75,40 +66,31 @@ function ApplicationForm() {
     });
 
     setSaving(false);
-    alert('Application saved!');
+    alert('Progress saved successfully!');
   };
 
-  if (loading) return <div className="p-8 text-center">Loading form...</div>;
+  if (loading) return <div className="p-8 text-center">Loading application form...</div>;
 
   return (
     <div className="p-4 max-w-2xl mx-auto pb-24">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">{benefitName}</h1>
-        <Button onClick={() => navigate({ to: '/_authenticated/applications' })} variant="outline">
-          Back
+        <Button variant="outline" onClick={() => navigate({ to: '/_authenticated/applications' })}>
+          Back to Applications
         </Button>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Application Form</CardTitle>
-          <p className="text-sm text-gray-600">Pre-filled where possible from your profile</p>
+          <p className="text-sm text-gray-600">Pre-filled from your profile where possible</p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Basic pre-filled fields example */}
           <div>
             <Label>Full Name</Label>
             <Input 
               value={formData.fullName || `${profile?.firstName || ''} ${profile?.lastName || ''}`} 
-              onChange={(e) => handleChange('fullName', e.target.value)} 
-            />
-          </div>
-
-          <div>
-            <Label>Date of Birth</Label>
-            <Input 
-              value={formData.dateOfBirth || profile?.dateOfBirth || ''} 
-              onChange={(e) => handleChange('dateOfBirth', e.target.value)} 
+              onChange={(e) => handleChange('fullName', e.target.value)}
             />
           </div>
 
@@ -117,30 +99,29 @@ function ApplicationForm() {
             <Input 
               value={formData.nino || ''} 
               onChange={(e) => handleChange('nino', e.target.value)} 
-              placeholder="Enter your NI number"
+              placeholder="AB 12 34 56 C"
             />
           </div>
 
-          {/* Add more fields dynamically based on benefitId in a full version */}
+          <div>
+            <Label>Additional Notes / Circumstances</Label>
+            <Textarea 
+              value={formData.notes || ''} 
+              onChange={(e) => handleChange('notes', e.target.value)} 
+              placeholder="Any extra information that may help your claim..."
+            />
+          </div>
 
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-6">
             <Button onClick={saveApplication} disabled={saving} className="flex-1">
               {saving ? 'Saving...' : 'Save Progress'}
             </Button>
-            <Button 
-              onClick={() => navigate({ to: '/_authenticated/applications' })} 
-              variant="outline" 
-              className="flex-1"
-            >
-              Done for now
+            <Button variant="outline" onClick={() => navigate({ to: '/_authenticated/applications' })} className="flex-1">
+              Finish Later
             </Button>
           </div>
         </CardContent>
       </Card>
-
-      <p className="text-center text-xs text-gray-500 mt-8">
-        This form will eventually auto-fill from your profile and match official DWP forms.
-      </p>
     </div>
   );
 }
