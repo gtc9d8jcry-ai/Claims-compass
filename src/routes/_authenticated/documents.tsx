@@ -54,19 +54,19 @@ function DocumentsPage() {
 
   return (
     <div className="p-4 max-w-2xl mx-auto pb-24">
-      <h1 className="text-3xl font-bold mb-6">Documents</h1>
+      <h1 className="text-3xl font-bold mb-6">Documents & Evidence</h1>
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Add Document</CardTitle>
+          <CardTitle>Add New Evidence</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Title</Label>
+            <Label>Document Title</Label>
             <Input 
               value={title} 
               onChange={(e) => setTitle(e.target.value)} 
-              placeholder="Document title" 
+              placeholder="e.g. GP Letter - April 2025" 
             />
           </div>
 
@@ -75,28 +75,27 @@ function DocumentsPage() {
             <select 
               value={docType} 
               onChange={(e) => setDocType(e.target.value)}
-              className="w-full border rounded-lg p-2"
+              className="w-full border rounded-lg p-3"
             >
               <option>Medical Evidence</option>
               <option>Bank Statement</option>
-              <option>Identity</option>
+              <option>Identity Document</option>
               <option>Assessment Letter</option>
               <option>Other</option>
             </select>
           </div>
 
           <Button onClick={addDocument} disabled={!title} className="w-full">
-            Add Document
+            Add to Vault
           </Button>
         </CardContent>
       </Card>
 
-      <h2 className="font-semibold mb-3">Your Documents</h2>
-
+      <h2 className="font-semibold mb-3">Your Stored Documents</h2>
       {loading ? (
         <p>Loading...</p>
       ) : documents.length === 0 ? (
-        <p className="text-gray-500">No documents yet.</p>
+        <p className="text-gray-500">No documents yet. Add your first one above.</p>
       ) : (
         <div className="space-y-3">
           {documents.map((doc) => (
@@ -104,6 +103,9 @@ function DocumentsPage() {
               <CardContent className="pt-4">
                 <div className="font-medium">{doc.title}</div>
                 <div className="text-sm text-gray-600">{doc.doc_type}</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Added {new Date(doc.created_at).toLocaleDateString()}
+                </div>
               </CardContent>
             </Card>
           ))}
