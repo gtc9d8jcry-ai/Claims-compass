@@ -1,39 +1,28 @@
 import { z } from 'zod';
 
 export const ProfileSchema = z.object({
-  id: z.string().uuid().optional(),
-  user_id: z.string().uuid(),
-  full_name: z.string().min(1, "Full name is required"),
-  date_of_birth: z.string().nullable(),
-  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).nullable(),
-  address_line1: z.string().nullable(),
-  address_line2: z.string().nullable(),
-  city: z.string().nullable(),
-  postcode: z.string().nullable(),
-  region: z.enum(['England', 'Scotland', 'Wales', 'Northern Ireland']).nullable(),
-  phone_number: z.string().nullable(),
-  email: z.string().email().nullable(),
-  weekly_income: z.number().nullable(),
-  income_frequency: z.enum(['weekly', 'monthly', 'annual']).default('weekly'),
-  employment_status: z.string().nullable(),
-  has_disability: z.boolean().default(false),
-  has_carer: z.boolean().default(false),
-  number_of_children: z.number().int().default(0),
-  housing_status: z.string().nullable(),
-  immigration_status: z.string().nullable(),
-  onboarding_completed: z.boolean().default(false),
-  last_updated: z.string().nullable(),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  email: z.string().email("Valid email required"),
+  phone: z.string().optional(),
+  address: z.string().min(1, "Address is required"),
+  postcode: z.string().min(1, "Postcode is required"),
+  nationality: z.string().default("British"),
+  residency: z.enum(["UK", "EEA", "Other"]).default("UK"),
+  income: z.number().optional(),
+  savings: z.number().optional(),
+  hasDisability: z.boolean().default(false),
+  needsCare: z.boolean().default(false),
+  isCaring: z.boolean().default(false),
+  hasPartner: z.boolean().default(false),
+  hasChildren: z.boolean().default(false),
+  // Add more fields from full backup as needed
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
 
-// Helper for income normalization
-export function toWeekly(amount: number | null | undefined, frequency: string = 'weekly'): number {
-  if (!amount || amount <= 0) return 0;
-  switch (frequency) {
-    case 'monthly': return Math.round((amount * 12) / 52);
-    case 'annual': return Math.round(amount / 52);
-    case 'weekly':
-    default: return Math.round(amount);
-  }
-}
+// Helper to calculate weekly income
+export const toWeekly = (annual?: number): number => {
+  return annual ? Math.round(annual / 52) : 0;
+};
