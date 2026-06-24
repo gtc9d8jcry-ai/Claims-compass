@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ClaimCompass Custom Styles */
+:root {
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Nice card and button polish */
+.card {
+  @apply bg-white rounded-3xl shadow-sm border border-gray-100;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-2xl transition-all active:scale-[0.985];
+}
+
+/* Mobile-friendly form inputs */
+input, select, textarea {
+  @apply border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+/* Benefit card hover effect */
+.benefit-card {
+  @apply transition-all active:scale-[0.985] hover:shadow-md;
+}
+
+/* Bottom navigation active state */
+.bottom-nav-active {
+  @apply text-blue-600 font-medium;
+}
