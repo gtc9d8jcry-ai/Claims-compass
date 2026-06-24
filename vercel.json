@@ -1,4 +1,5 @@
 {
+  "//": "Vercel config for React Router - SPA support",
   "rewrites": [
     {
       "source": "/(.*)",
