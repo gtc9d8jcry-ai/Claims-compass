@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { runEligibility, type EligibilityResults } from '@/lib/claims/eligibility';
 import { Profile } from '@/lib/schemas/profile';
+import { BENEFITS, Benefit } from '@/data/benefits';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -13,96 +13,109 @@ export const Route = createFileRoute('/_authenticated/check-benefits')({
 function CheckBenefitsPage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [results, setResults] = useState<EligibilityResults | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfileAndCheck = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate({ to: '/login' });
-      return;
-    }
+  useEffect(() => {
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate({ to: '/login' });
+        return;
+      }
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-    if (data) {
-      setProfile(data as Profile);
-      const eligibilityResults = runEligibility(data as Profile);
-      setResults(eligibilityResults);
-    }
-    setLoading(false);
+      if (data) setProfile(data as Profile);
+      setLoading(false);
+    };
+
+    loadProfile();
+  }, [navigate]);
+
+  // Simple eligibility check (we can make this smarter later)
+  const getEligibility = (benefit: Benefit) => {
+    if (!profile) return 'possible';
+
+    const lowerIncome = (profile.income || 0) < 2500;
+    const hasDisability = profile.hasDisability === true;
+    const needsCare = profile.needsCare === true;
+    const isCaring = profile.isCaring === true;
+    const over66 = profile.age && profile.age >= 66;
+
+    if (benefit.id === 'universal-credit' && lowerIncome) return 'likely';
+    if (benefit.id === 'pip' && hasDisability) return 'likely';
+    if (benefit.id === 'attendance-allowance' && over66 && needsCare) return 'likely';
+    if (benefit.id === 'carers-allowance' && isCaring) return 'likely';
+    if (benefit.id === 'pension-credit' && over66 && lowerIncome) return 'likely';
+
+    return 'possible';
   };
 
-  useEffect(() => {
-    fetchProfileAndCheck();
-  }, []);
-
-  if (loading || !results) {
-    return <div className="p-8 text-center">Checking your eligibility across all benefits...</div>;
+  if (loading) {
+    return <div className="p-8 text-center">Checking your eligibility...</div>;
   }
 
-  const { likely, possible, unlikely, totalWeekly } = results;
+  const likelyBenefits = BENEFITS.filter(b => getEligibility(b) === 'likely');
+  const possibleBenefits = BENEFITS.filter(b => getEligibility(b) === 'possible');
 
   return (
-    <div className="p-4 max-w-2xl mx-auto space-y-6 pb-24">
-      <div className="flex justify-between items-center">
+    <div className="p-4 max-w-2xl mx-auto pb-24 space-y-6">
+      <div>
         <h1 className="text-3xl font-bold text-blue-600">Your Benefits Check</h1>
-        <Button onClick={fetchProfileAndCheck} variant="outline">Refresh</Button>
+        <p className="text-gray-600 mt-1">Based on the information in your profile</p>
       </div>
-
-      {totalWeekly > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-blue-600 font-medium">Potential weekly support</p>
-            <p className="text-5xl font-bold text-blue-600">£{totalWeekly}</p>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Likely Eligible */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-green-600">Likely Eligible</CardTitle>
+          <CardTitle className="text-green-600">Likely Eligible ({likelyBenefits.length})</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {likely.length > 0 ? (
-            likely.map((item: any, i: number) => (
+        <CardContent className="space-y-3">
+          {likelyBenefits.length > 0 ? (
+            likelyBenefits.map((benefit) => (
               <div
-                key={i}
-                onClick={() => navigate({ to: `/applications/${item.id || item.benefit.toLowerCase().replace(/\s+/g, '-')}` })}
-                className="bg-white border border-green-200 rounded-3xl p-6 cursor-pointer active:scale-[0.985] transition-all hover:shadow-md"
+                key={benefit.id}
+                onClick={() => navigate({ to: `/applications/${benefit.id}` })}
+                className="benefit-card p-5 border border-green-200 bg-green-50 rounded-3xl cursor-pointer active:scale-[0.985]"
               >
-                <div className="flex justify-between">
+                <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-semibold text-xl">{item.benefit}</div>
-                    <div className="text-green-600">~£{item.weeklyAmount || item.weekly}/week</div>
+                    <div className="font-semibold text-xl">{benefit.name}</div>
+                    {benefit.weeklyAmount && (
+                      <div className="text-green-700 font-medium">~£{benefit.weeklyAmount}/week</div>
+                    )}
                   </div>
-                  <div className="text-4xl">✅</div>
+                  <div className="text-3xl">✅</div>
                 </div>
-                <p className="text-sm text-gray-600 mt-3">{item.reason}</p>
-                <div className="text-xs text-blue-600 mt-4 font-medium">Tap to start / continue application →</div>
+                <p className="text-sm text-gray-700 mt-2">{benefit.eligibilitySummary}</p>
+                <div className="text-xs text-blue-600 mt-3 font-medium">Tap to start application →</div>
               </div>
             ))
           ) : (
-            <p className="text-muted-foreground">No strong matches at this time.</p>
+            <p className="text-gray-500">No strong matches yet. Add more details to your profile.</p>
           )}
         </CardContent>
       </Card>
 
       {/* Possibly Eligible */}
-      {possible.length > 0 && (
+      {possibleBenefits.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Possibly Eligible</CardTitle>
+            <CardTitle>Possibly Eligible ({possibleBenefits.length})</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {possible.map((item: any, i: number) => (
-              <div key={i} className="p-4 border rounded-2xl">
-                <span className="font-medium">{item.benefit}</span> — {item.reason}
+            {possibleBenefits.map((benefit) => (
+              <div
+                key={benefit.id}
+                onClick={() => navigate({ to: `/applications/${benefit.id}` })}
+                className="benefit-card p-5 border rounded-3xl cursor-pointer active:scale-[0.985]"
+              >
+                <div className="font-semibold">{benefit.name}</div>
+                <p className="text-sm text-gray-600 mt-1">{benefit.eligibilitySummary}</p>
               </div>
             ))}
           </CardContent>
@@ -110,7 +123,7 @@ function CheckBenefitsPage() {
       )}
 
       <div className="text-center text-xs text-gray-500 pt-4">
-        Results based on your profile • We monitor for policy changes daily
+        Results are estimates • Update your profile for better accuracy
       </div>
     </div>
   );
