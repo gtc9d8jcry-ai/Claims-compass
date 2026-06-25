@@ -1,5 +1,4 @@
 {
-  "comment": "Vercel SPA routing fix - redeploy",
   "rewrites": [
     {
       "source": "/(.*)",
