@@ -1,4 +1,5 @@
 {
+  "// comment": "Force redeploy for SPA routing",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
