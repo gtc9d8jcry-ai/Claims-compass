@@ -1,37 +1,91 @@
-import { Link, useRouterState } from '@tanstack/react-router';
-import { Home, CheckCircle, FileText, FolderOpen, MessageCircle, User } from 'lucide-react';
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import {
+  LayoutDashboard,
+  Search,
+  FileText,
+  FolderOpen,
+  Scale,
+  Files,
+  MessageCircleHeart,
+  LogOut,
+  UserCog,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/logo";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
-const navItems = [
-  { to: '/dashboard', icon: Home, label: 'Home' },
-  { to: '/check-benefits', icon: CheckCircle, label: 'Check Benefits' },
-  { to: '/applications', icon: FileText, label: 'Applications' },
-  { to: '/evidence', icon: FolderOpen, label: 'Evidence' },
-  { to: '/conversational', icon: MessageCircle, label: 'AI Assistant' },
-  { to: '/profile', icon: User, label: 'Profile' },
+const items = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Check Benefits", url: "/check-benefits", icon: Search },
+  { title: "Applications", url: "/applications", icon: FileText },
+  { title: "Evidence", url: "/evidence", icon: FolderOpen },
+  { title: "Appeals", url: "/appeals", icon: Scale },
+  { title: "Documents", url: "/documents", icon: Files },
+  { title: "Assistant", url: "/assistant", icon: MessageCircleHeart },
 ];
 
 export function AppSidebar() {
-  const routerState = useRouterState();
+  const navigate = useNavigate();
+  const path = useRouterState({ select: (r) => r.location.pathname });
 
   return (
-    <div className="hidden md:flex w-64 flex-col border-r bg-white h-screen p-4">
-      <div className="font-bold text-2xl text-blue-600 mb-8">ClaimCompass</div>
-      
-      <nav className="space-y-2">
-        {navItems.map((item) => {
-          const isActive = routerState.location.pathname.startsWith(item.to);
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive ? 'bg-blue-100 text-blue-700 font-medium' : 'hover:bg-gray-100'}`}
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <Logo className="flex items-center gap-2 px-2 py-3" />
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={path === item.url}>
+                    <Link to={item.url} className="flex items-center gap-2">
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={path === "/profile"}>
+              <Link to="/profile" className="flex items-center gap-2">
+                <UserCog className="h-4 w-4" />
+                <span>My Details</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate({ to: "/login" });
+              }}
             >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
