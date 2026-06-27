@@ -1,83 +1,119 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef } from "react";
 
-interface DateWheelPickerProps {
-  value?: string;
-  onChange?: (date: string) => void;
-}
+const ITEM_H = 40;
+const VISIBLE = 5; // odd number of rows
+const PAD = ((VISIBLE - 1) / 2) * ITEM_H;
+const CONTAINER_H = VISIBLE * ITEM_H;
 
-export function DateWheelPicker({ value, onChange }: DateWheelPickerProps) {
-  const [day, setDay] = useState(1);
-  const [month, setMonth] = useState(1);
-  const [year, setYear] = useState(1990);
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function WheelColumn({
+  items,
+  index,
+  onIndexChange,
+}: {
+  items: string[];
+  index: number;
+  onIndexChange: (i: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Keep the scroll position in sync when the selected index changes.
   useEffect(() => {
-    if (value) {
-      const d = new Date(value);
-      setDay(d.getDate());
-      setMonth(d.getMonth() + 1);
-      setYear(d.getFullYear());
-    }
-  }, [value]);
+    const el = ref.current;
+    if (!el) return;
+    const target = index * ITEM_H;
+    if (Math.abs(el.scrollTop - target) > 1) el.scrollTo({ top: target });
+  }, [index]);
 
-  const updateDate = (newDay: number, newMonth: number, newYear: number) => {
-    const dateStr = `${newYear}-${String(newMonth).padStart(2, '0')}-${String(newDay).padStart(2, '0')}`;
-    onChange?.(dateStr);
+  const handleScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    if (timeout.current) clearTimeout(timeout.current);
+    timeout.current = setTimeout(() => {
+      const i = Math.round(el.scrollTop / ITEM_H);
+      const clamped = Math.max(0, Math.min(items.length - 1, i));
+      el.scrollTo({ top: clamped * ITEM_H, behavior: "smooth" });
+      if (clamped !== index) onIndexChange(clamped);
+    }, 90);
   };
 
   return (
-    <div className="flex justify-center gap-4 py-4">
-      {/* Day */}
-      <div className="w-20 text-center">
-        <div className="text-xs text-gray-500 mb-1">Day</div>
-        <select 
-          value={day} 
-          onChange={(e) => {
-            const newDay = parseInt(e.target.value);
-            setDay(newDay);
-            updateDate(newDay, month, year);
-          }}
-          className="w-full border rounded-lg p-2 text-center"
+    <div
+      ref={ref}
+      onScroll={handleScroll}
+      className="no-scrollbar flex-1 overflow-y-auto"
+      style={{ height: CONTAINER_H, scrollSnapType: "y mandatory" }}
+    >
+      <div style={{ height: PAD }} />
+      {items.map((it, i) => (
+        <div
+          key={i}
+          onClick={() => onIndexChange(i)}
+          className={`flex cursor-pointer select-none items-center justify-center transition-all ${
+            i === index ? "text-base font-semibold text-foreground" : "text-sm text-muted-foreground/50"
+          }`}
+          style={{ height: ITEM_H, scrollSnapAlign: "center" }}
         >
-          {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      </div>
+          {it}
+        </div>
+      ))}
+      <div style={{ height: PAD }} />
+    </div>
+  );
+}
 
-      {/* Month */}
-      <div className="w-24 text-center">
-        <div className="text-xs text-gray-500 mb-1">Month</div>
-        <select 
-          value={month} 
-          onChange={(e) => {
-            const newMonth = parseInt(e.target.value);
-            setMonth(newMonth);
-            updateDate(day, newMonth, year);
-          }}
-          className="w-full border rounded-lg p-2 text-center"
-        >
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-            <option key={m} value={m}>{new Date(2000, m-1, 1).toLocaleString('default', { month: 'short' })}</option>
-          ))}
-        </select>
-      </div>
+export function DateWheelPicker({
+  value,
+  onChange,
+}: {
+  value?: string | null;
+  onChange: (iso: string) => void;
+}) {
+  const parsed = value ? new Date(value) : null;
+  const valid = parsed && !isNaN(parsed.getTime());
+  const d = valid ? parsed!.getDate() : 1;
+  const m = valid ? parsed!.getMonth() : 0;
+  const y = valid ? parsed!.getFullYear() : 1970;
 
-      {/* Year */}
-      <div className="w-24 text-center">
-        <div className="text-xs text-gray-500 mb-1">Year</div>
-        <select 
-          value={year} 
-          onChange={(e) => {
-            const newYear = parseInt(e.target.value);
-            setYear(newYear);
-            updateDate(day, month, newYear);
-          }}
-          className="w-full border rounded-lg p-2 text-center"
-        >
-          {Array.from({ length: 100 }, (_, i) => 2026 - i).map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(() => {
+    const arr: number[] = [];
+    for (let yr = currentYear; yr >= currentYear - 100; yr--) arr.push(yr);
+    return arr;
+  }, [currentYear]);
+
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const days = useMemo(
+    () => Array.from({ length: daysInMonth }, (_, i) => pad(i + 1)),
+    [daysInMonth],
+  );
+
+  const emit = (nd: number, nm: number, ny: number) => {
+    const dim = new Date(ny, nm + 1, 0).getDate();
+    const day = Math.min(nd, dim);
+    onChange(`${ny}-${pad(nm + 1)}-${pad(day)}`);
+  };
+
+  const yearIndex = Math.max(0, years.indexOf(y));
+
+  return (
+    <div className="relative rounded-xl border border-input bg-background px-2 py-1">
+      {/* center highlight band */}
+      <div
+        className="pointer-events-none absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-lg bg-primary/10"
+        style={{ height: ITEM_H }}
+      />
+      <div className="relative flex">
+        <WheelColumn items={days} index={d - 1} onIndexChange={(i) => emit(i + 1, m, y)} />
+        <WheelColumn items={MONTHS} index={m} onIndexChange={(i) => emit(d, i, y)} />
+        <WheelColumn items={years.map(String)} index={yearIndex} onIndexChange={(i) => emit(d, m, years[i])} />
       </div>
     </div>
   );
