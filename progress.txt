@@ -22,6 +22,14 @@ Verified/committed so far:
 - src/data/benefits.ts
 - src/lib/claims/benefits-registry.ts
 
-Note: GitHub App write access active. Direct push working. Many routes + lib files now tracked. If Lovable export contains files NOT in current tree (e.g. extra components/ui/*, hooks, or custom pages), paste their full content for next push batch.
+**Latest batch (this session, direct push):**
+- src/components/ui/button.tsx
+- src/components/ui/card.tsx
+- src/components/ui/input.tsx
+- src/components/ui/label.tsx
+- src/components/ui/dialog.tsx
+- src/components/ui/dropdown-menu.tsx
 
-Current: User requested next 10 files → batch processed via progress sync. Ready for any missing files from backup.
+Note: GitHub App write access active. Direct push working. ui/ primitives now present — many more ui/ files remain in export (accordion, alert, etc.). Core routes + lib partially synced. If more files from export missing in tree, next batch ready.
+
+Current: User confirmed continue. Batch of 6 complete. Ready for next 4-6 (recommend more ui/ or lib/ files).
